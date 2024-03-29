@@ -198,9 +198,10 @@ def receive_messages(
     # return [str(msg.message_id) for msg in msgs]
     
     # XXX: For demonstration, dump the entire received message. In practice, 
-    # it's lighter to just return the message IDs.
+    # it's lighter to just return the message IDs. Don't use dump_json, since
+    # all the data *should* be serializable by convention.
     ta = TypeAdapter(list[DeadDropMessage])
-    return ta.dump_json(msgs).decode('utf-8')
+    return ta.dump_python(msgs)
 
 @shared_task
 def install_agent(bundle_path: str, user_id: Optional[int] = None) -> dict[str, Any]:
