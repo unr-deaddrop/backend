@@ -27,6 +27,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   redis:
+    container_name: redis
     image: redis:7.0.11-alpine # other stuff may not work due to alpine. probably will tho
 
   backend:
@@ -39,10 +40,15 @@ services:
     env_file:
       # Expose .env.dev to Django's settings.py
       - "./.env.dev"
-    ports:
-      - "8000:8000"
-    expose:
-      - "8000"
+    # ports:
+    #   - "8000:8000"
+    # expose:
+    #   - "8000"
+    networks:
+      - default
+    labels:
+      - "traefik.docker.network=default"
+      - "traefik.http.routers.backend.rule=Host(`backend.localhost`)"
     volumes:
       # Make the host's Docker daemon accessible, allows payloads to spin up
       # their own sibling containers
@@ -58,6 +64,7 @@ services:
 
   # https://testdriven.io/blog/dockerizing-django-with-postgres-gunicorn-and-nginx/
   db:
+    container_name: db
     image: postgres:16
     volumes:
       # NOTE: This makes data persist beyond the lifetime of the container! You'll 
@@ -73,10 +80,10 @@ services:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin
       - POSTGRES_DB=deaddrop
-    ports:
-      - "5432:5432"
-    expose:
-      - "5432"
+    # ports:
+    #   - "5432:5432"
+    # expose:
+    #   - "5432"
 
   celery:
     container_name: celery
@@ -99,12 +106,18 @@ services:
       - media:/app/media
 
   frontend:
+    container_name: frontend
   # for now add a comment mentioning something along the lines of this assuming a specific directory structure, where the frontend is in the same parent folder as the backend
     build: ../frontend/deaddrop/.
-    ports:
-      - "5173:5173"
-    expose:
-      - "5173"
+    # ports:
+    #   - "5173:5173"
+    # expose:
+    #   - "5173"
+    networks:
+      - default
+    labels:
+      - "traefik.docker.network=default"
+      - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`)"
 
 # Allows data to persist. Particularly important for the package manager, since
 # it needs different containers all operating on the same data.
@@ -112,3 +125,7 @@ volumes:
   postgres_data:
   packages:
   media:
+
+networks:
+  default:
+    driver: bridge

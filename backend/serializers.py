@@ -1,7 +1,6 @@
 from typing import Any
 
 from rest_framework import serializers
-from rest_framework.validators import ValidationError
 from backend.models import (
     Agent,
     Protocol,
@@ -13,6 +12,7 @@ from backend.models import (
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django_celery_results.models import TaskResult
 
 
@@ -53,7 +53,10 @@ class UserSerializer(serializers.ModelSerializer):
             user.save()
         except ValidationError as err:
             user.delete()
-            raise serializers.ValidationError({'password': err.messages})
+            raise serializers.ValidationError({
+                'message': "Failed",
+                'password': err.messages
+                })
         return user
 
     def __str__(self):
