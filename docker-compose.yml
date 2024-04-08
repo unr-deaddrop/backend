@@ -1,6 +1,31 @@
 version: '3'
 services:
 
+  traefik:
+    container_name: traefik
+    # The official v2 Traefik docker image
+    image: traefik:v2.11
+    # Enables the web UI and tells Traefik to listen to docker
+    command: --api.insecure=true --providers.docker
+    networks:
+      default:
+        aliases:
+          - "backend:backend.localhost"
+          - "frontend:frontend.localhost"
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    expose:
+      - "80"
+      - "8080"
+    labels:
+      - "traefik.docker.network=default"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+
   redis:
     image: redis:7.0.11-alpine # other stuff may not work due to alpine. probably will tho
 

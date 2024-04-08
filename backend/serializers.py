@@ -12,6 +12,7 @@ from backend.models import (
     Message
 )
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django_celery_results.models import TaskResult
 
 
@@ -34,6 +35,9 @@ class UserSerializer(serializers.ModelSerializer):
         # fields = '__all__'
         # fields = ['username', 'first_name', 'last_name', 'email', 'password', 'groups', 'user_permissions', 'is_staff', 'is_active', 'is_superuser', 'last_login', 'last_login', 'date_joined']
         fields = ['id', 'username', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True},
+        }
     # def validate(self, attrs):
     #     email_exists = User.objects.filter(email=attrs['email']).exists()
     #     if email_exists:
@@ -43,8 +47,13 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         password = validated_data.pop("password")
         user = super().create(validated_data)
-        user.set_password(password)
-        user.save()
+        try:
+            validate_password(password=password, user=user)
+            user.set_password(password)
+            user.save()
+        except ValidationError as err:
+            user.delete()
+            raise serializers.ValidationError({'password': err.messages})
         return user
 
     def __str__(self):

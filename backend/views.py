@@ -194,24 +194,7 @@ class InstallAgentViewSet(viewsets.ViewSet):
 
         serializer = AgentSerializer(agent_obj)
         return Response(serializer.data)
-
-
-@api_view(["GET"])
-def agents(request):
-    agents = Agent.objects.all()
-    serializer = AgentSerializer(
-        agents, many=True
-    )  # setting to true means to serialize multiple items. False is just one item
-    return Response(serializer.data)
-
-
-@api_view(["POST"])
-def addAgent(request):
-    serializer = AgentSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-    return Response(serializer.data)
-
+    
 
 # Credentials
 class CredentialViewSet(viewsets.ModelViewSet):
@@ -281,7 +264,7 @@ class EndpointViewSet(viewsets.ModelViewSet):
         # return Response(serializer_tmp.data)
 
     # really, this should be a GET request, but i think the interface is "cleaner"
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['get', 'post'])
     def get_command_metadata(self, request, pk=None):
         # Note that we expect an endpoint, not an agent, even though the response
         # would be the same across two endpoints of the same agent. This is to
