@@ -1,5 +1,5 @@
 # Always use the latest commited version of the DeadDrop metaclasses.
-deaddrop-meta @ git+https://github.com/unr-deaddrop/deaddrop_meta@v0.0.6
+deaddrop-meta @ git+https://github.com/unr-deaddrop/deaddrop_meta@v0.2.0
 
 # Functional
 Django==4.2.7 
