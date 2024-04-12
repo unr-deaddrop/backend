@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("django_celery_results", "0012_taskresult_task_creator"),
+        ("django_celery_results", "0011_taskresult_periodic_task_name"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
