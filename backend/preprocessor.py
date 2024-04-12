@@ -114,6 +114,19 @@ def preprocess_anyof(input: dict[str, Any]) -> None:
             # Also, we can't use the nicer syntax because those will create new
             # dictionaries, rather than operating in-place.
             input.update(d)
+            
+def preprocess_array(input: dict[str, Any]) -> None:
+    """
+    Convert array fields into a simple string field.
+    """
+    assert input["type"] == "array"
+    assert "items" in input
+    
+    # Blow up the "items" field
+    input.pop("items")
+    
+    # Convert the field type to "string"
+    input["type"] = "string"
 
 def preprocess_dict(input: dict[str, Any], remove_anyof = True) -> dict[str, Any]:
     """
@@ -129,6 +142,9 @@ def preprocess_dict(input: dict[str, Any], remove_anyof = True) -> dict[str, Any
         # call them preprocessor modules, have them all run on key/value/input)
         if key == "anyOf":
             preprocess_anyof(input)
+            
+        if key == "type" and value == "array":
+            preprocess_array(input)
 
         if match := re.match(r'_preprocess_(.*)', key):
             # Remove the preprocessor key

@@ -16,6 +16,8 @@ from django.dispatch import receiver
 from django_celery_results.models import TaskResult
 
 from deaddrop_meta.protocol_lib import DeadDropMessageType, DeadDropMessage
+from deaddrop_meta.protocol_lib import Credential as DeadDropCredential
+from deaddrop_meta.protocol_lib import File as DeadDropFile
 
 logger = logging.getLogger(__name__)
 
@@ -305,6 +307,8 @@ class Message(models.Model):
     
 
 class Credential(models.Model):
+    credential_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
     # Task responsible for creating this credential entry, if any
     task = models.ForeignKey(
         TaskResult,
@@ -320,10 +324,19 @@ class Credential(models.Model):
     # The actual value of the session token, username/password combo, etc -
     # in case the credential is composed of multiple things, it should have a
     # clear delimiter based on credential_type
-    credential_value = models.CharField(max_length=255)
+    credential_value = models.CharField(max_length=1023)
 
     # When this credential becomes invalid
     expiry = models.DateTimeField(blank=True, null=True)
+
+    @classmethod
+    def from_deaddrop_credential(cls, credential: DeadDropCredential) -> "Credential":
+        return cls(
+            credential_id=credential.credential_id,
+            credential_type=credential.credential_type,
+            credential_value=credential.value,
+            expiry=credential.expiry
+        )
 
     def get_absolute_url(self):
         return reverse("credential-detail", args=[str(self.id)])
@@ -333,12 +346,34 @@ class Credential(models.Model):
 
 
 class File(models.Model):
+    file_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
     # Task responsible for creating this credential entry, if any
     task = models.ForeignKey(
         TaskResult, on_delete=models.PROTECT, blank=True, null=True, related_name="files"
     )
     # Path to file; location to be determined
     file = models.FileField(upload_to="files")
+
+    @classmethod
+    def from_deaddrop_file(cls, file: DeadDropFile) -> "File":
+        # Note that this also generates the actual file in the media folder,
+        # but may be dangling if the resulting model instance is not saved
+        #
+        # This is assumed to not be an issue because of the astronomically
+        # low collision chance
+        media_path = (
+            Path(cls.file.field.upload_to) / f"{file.file_id}.bin"
+        )
+        file_target = Path(settings.MEDIA_ROOT) / media_path
+        
+        with open(file_target, "wb+") as fp:
+            fp.write(file.file_data)
+        
+        return cls(
+            file_id = file.file_id,
+            file = str(media_path)
+        )
 
     def get_absolute_url(self):
         return reverse("file-detail", args=[str(self.id)])
