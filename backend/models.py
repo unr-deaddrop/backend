@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 #
 # In practice, it should never be left blank, since all DRF requests have the
 # user available (unless anonymous.)
+#
+# Note that this naturally creates another migration. If you're not running
+# in a virtual environment, this *will* edit the set of migrations in the
+# Django application for django_celery_results. You may need to delete this
+# migration for things to work correctly.
 TaskResult.add_to_class('task_creator', models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True))
 
 # from django.db.models.signals import post_save
