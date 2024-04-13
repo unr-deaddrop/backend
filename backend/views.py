@@ -554,14 +554,21 @@ class FileViewSet(viewsets.ModelViewSet):
 
 
 # Logs
+def int_or(str, default):
+    try: 
+        ret = int(str)
+    except ValueError:
+        ret = default
+    return ret
+
 class LogViewSet(viewsets.ModelViewSet):
     serializer_class = LogSerializer
     def list(self, request):
         queryset = Log.objects.all()
-        if (request.GET.get('search')):
-            queryset = queryset.filter(data__contains=request.GET.get('search'))
-
-        pages = Paginator(queryset, int(request.GET.get('show', '10')))
-        queryset = pages.get_page(int(request.GET.get('page', '1'))).object_list
+        queryset = queryset.filter(data__contains=str("" if not request.GET.get('search') else request.GET.get('search')))
+            
+        pages = Paginator(queryset, int_or(request.GET.get('show', '10'), 10))
+        queryset = pages.get_page(int_or(request.GET.get('page', '1'), 1)).object_list
         dataset = [self.serializer_class(log).data for log in queryset]
+        dataset = {'pages': str(pages.num_pages), 'data': dataset}
         return JsonResponse(dataset, safe=False)
