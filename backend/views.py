@@ -1,7 +1,10 @@
 from pathlib import Path
+from typing import Any
 import uuid
 import shutil
 import tempfile
+
+from celery.result import AsyncResult
 
 # from django.shortcuts import render
 from rest_framework.response import Response
@@ -43,7 +46,8 @@ from backend.serializers import (
     CommandSchemaSerializer,
     AgentSchemaSerializer,
     CommandSerializer,
-    MessageSerializer
+    MessageSerializer,
+    ExecuteCommandSerializer
 )
 from backend.packages import install_agent
 from backend.preprocessor import preprocess_dict, preprocess_list
@@ -338,6 +342,66 @@ class ProtocolViewSet(viewsets.ModelViewSet):
         "name",
     ]
 
+def start_command(endpoint: Endpoint, validated_data: dict[str, Any], user_id: int) -> AsyncResult:
+        """
+        Execute a command against an endpoint.
+        
+        `validated_data` is simply a dictionary with the following format:
+        
+        ```python
+        {
+            "cmd_name": str,
+            "cmd_args": dict[str, Any]
+        }
+        ```
+        """
+        
+        cmd_name = validated_data['cmd_name']
+        cmd_args = validated_data['cmd_args']
+        
+        # Retrieve the JSON schema for this command, do not preprocess. Fail
+        # if the command isn't found.
+        command_metadata = endpoint.agent.get_command_metadata()
+        commands = {cmd['name']: cmd for cmd in command_metadata}
+        if cmd_name not in commands:
+            raise ValidationError({"cmd_name": "Command is not valid for this endpoint!"})
+        
+        # Validate the incoming cmd_args against this schema
+        #
+        # Note that we can't use a serializer with a pre-defined schema, as with
+        # https://pypi.org/project/drf-jsonschema/, since the schema is defined
+        # at runtime. There are a few ways to get around this, but the stock
+        # jsonschema is fine. 
+        #
+        # Additionally, note that jsonschema supports the anyOf syntax that is
+        # normally removed by the preprocessor. We pass the raw Pydantic output
+        # to jsonschema, since this does exactly what we want - validation
+        # against the original. The absence of a non-required key is fine, since
+        # when it reaches the agent, it should be assumed None. In our case, this
+        # is guaranteed by Pydantic's model validation. Not necessarily true
+        # for other libraries in other languages, but that's outside our scope.
+        command_schema = commands[cmd_name]['argument_schema']
+        validator = jsonschema.Draft202012Validator(command_schema)
+        
+        # Construct a validation error specifying failing fields that are
+        # *close enough* to DRF's native format. When no 
+        if not validator.is_valid(cmd_args):
+            errors = {
+                'global': [] # When tied to the overall schema
+            }
+            for error in validator.iter_errors(cmd_args):
+                if not error.relative_path:
+                    errors['global'].append(error.message)
+                else:
+                    errors[error.relative_path[-1]] = error.message
+            raise ValidationError(errors)
+        
+        # If the command arguments pass, invoke the command execution task.
+        # This also invokes a separate "receive message" subtask, which is started
+        # at the end of the task and runs asynchronously. The user attribution
+        # for the task is the same as the original command execution task.
+        result = tasks.execute_command.delay(validated_data, str(endpoint.id), user_id)
+        return result
 
 # Endpoints
 class EndpointViewSet(viewsets.ModelViewSet):
@@ -429,53 +493,10 @@ class EndpointViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors)
         
-        cmd_name = serializer.data['cmd_name']
-        cmd_args = serializer.data['cmd_args']
-        
-        # Retrieve the JSON schema for this command, do not preprocess. Fail
-        # if the command isn't found.
-        command_metadata = endpoint.agent.get_command_metadata()
-        commands = {cmd['name']: cmd for cmd in command_metadata}
-        if cmd_name not in commands:
-            raise ValidationError({"cmd_name": "Command is not valid for this endpoint!"})
-        
-        # Validate the incoming cmd_args against this schema
-        #
-        # Note that we can't use a serializer with a pre-defined schema, as with
-        # https://pypi.org/project/drf-jsonschema/, since the schema is defined
-        # at runtime. There are a few ways to get around this, but the stock
-        # jsonschema is fine. 
-        #
-        # Additionally, note that jsonschema supports the anyOf syntax that is
-        # normally removed by the preprocessor. We pass the raw Pydantic output
-        # to jsonschema, since this does exactly what we want - validation
-        # against the original. The absence of a non-required key is fine, since
-        # when it reaches the agent, it should be assumed None. In our case, this
-        # is guaranteed by Pydantic's model validation. Not necessarily true
-        # for other libraries in other languages, but that's outside our scope.
-        command_schema = commands[cmd_name]['argument_schema']
-        print(command_schema)
-        print(cmd_args)
-        validator = jsonschema.Draft202012Validator(command_schema)
-        
-        # Construct a validation error specifying failing fields that are
-        # *close enough* to DRF's native format. When no 
-        if not validator.is_valid(cmd_args):
-            errors = {
-                'global': [] # When tied to the overall schema
-            }
-            for error in validator.iter_errors(cmd_args):
-                if not error.relative_path:
-                    errors['global'].append(error.message)
-                else:
-                    errors[error.relative_path[-1]] = error.message
-            raise ValidationError(errors)
-        
-        # If the command arguments pass, invoke the command execution task.
-        # This also invokes a separate "receive message" subtask, which is started
-        # at the end of the task and runs asynchronously. The user attribution
-        # for the task is the same as the original command execution task.
-        result = tasks.execute_command.delay(serializer.data, str(endpoint.id), request.user.id)
+        try:
+            result = start_command(endpoint, serializer.data, request.user.id)
+        except Exception as e:
+            return Response({"error": str(e)})
 
         # Return the task ID, which is intended to be used by the frontend
         # to bring the user to the relevant TaskResult detail page.
@@ -494,13 +515,38 @@ class EndpointViewSet(viewsets.ModelViewSet):
         return Response({"task_id": result.id})
         
 
+class ExecuteCommandViewSet(viewsets.ViewSet):
+    """
+    Top-level access to command execution, primarily for debug so that we
+    don't have to manually make POST requests since the form doesn't
+    appear on the /endpoints/<id>/execute_command route
+    """
+    serializer_class = ExecuteCommandSerializer
+
+    # POST
+    def create(self, request, format=None):
+        data = request.data
+        serializer = ExecuteCommandSerializer(data=data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors)
+
+        try:
+            endpoint = Endpoint.objects.get(id=serializer.data["endpoint"])
+            result = start_command(endpoint, serializer.data["cmd_data"], request.user.id)
+        except Exception as e:
+            return Response({"error": str(e)})
+
+        return Response({"task_id": result.id})
+
+
 # Files
 class FileViewSet(viewsets.ModelViewSet):
     queryset = File.objects.all()
     serializer_class = FileSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = [
-        "id",
+        "file_id",
         "task",
     ]
 

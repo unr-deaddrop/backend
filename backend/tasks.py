@@ -4,6 +4,7 @@ All shared Celery tasks.
 
 from pathlib import Path
 from typing import Any, Optional
+import json
 import time
 import logging
 
@@ -12,16 +13,22 @@ from celery.signals import before_task_publish
 from django_celery_results.models import TaskResult
 from pydantic import TypeAdapter
 
-from backend.models import Agent, Endpoint
+from backend.models import Agent, Endpoint, File, Credential
 from backend.serializers import EndpointSerializer, AgentSerializer
 from django.contrib.auth.models import User
 from django.db.models.query import QuerySet
+from django.db import IntegrityError
 import backend.messaging as messaging
 import backend.payloads as payloads
 import backend.packages as packages
 
 
-from deaddrop_meta.protocol_lib import DeadDropMessage, CommandRequestPayload, DeadDropMessageType
+from deaddrop_meta.protocol_lib import (
+    DeadDropMessage, 
+    CommandRequestPayload, 
+    DeadDropMessageType, 
+    CommandResponsePayload
+)
 
 logger = logging.getLogger(__name__)
 
@@ -193,15 +200,37 @@ def receive_messages(
     task_id = current_task.request.id
     msgs = messaging.receive_messages(endpoint, request_id, task_id, user)
     
+    # Process the messages and create any new credential or file entries as needed
+    for msg in msgs:
+        payload = msg.payload
+        if not isinstance(payload, CommandResponsePayload):
+            continue
+        
+        for file in payload.files:
+            try:
+                File.from_deaddrop_file(file).save()
+            except IntegrityError:
+                logger.warning(f"Received {file.file_id=}, assuming duplicate and dropping")
+        
+        for credential in payload.credentials:
+            try:
+                Credential.from_deaddrop_credential(credential).save()
+            except IntegrityError:
+                logger.warning(f"Received {credential.credential_id=}, assuming duplicate and dropping")
+    
     # Obviously we can't serialize DeadDropMessages, so the next best thing is
     # to just return a list of message IDs that can be looked up in the db
     # return [str(msg.message_id) for msg in msgs]
     
     # XXX: For demonstration, dump the entire received message. In practice, 
-    # it's lighter to just return the message IDs. Don't use dump_json, since
-    # all the data *should* be serializable by convention.
+    # it's lighter to just return the message IDs. 
+    #
+    # We use dump_json to convert everything into representable types (UUID is
+    # not a native JSON type, for example), and then use json.loads() to turn it
+    # back into a Python object. This effectively converts everything into 
+    # "normal" JSON.
     ta = TypeAdapter(list[DeadDropMessage])
-    return ta.dump_python(msgs)
+    return json.loads(ta.dump_json(msgs))
 
 @shared_task
 def install_agent(bundle_path: str, user_id: Optional[int] = None) -> dict[str, Any]:

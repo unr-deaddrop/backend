@@ -9,8 +9,11 @@ services:
     build:
       context: .
     # Agents may install libraries, which could cause Django to reload.
-    # This prevents that from happening in the middle of an agent install.
-    command: make migrate run_noreload
+    # --noreload prevents that from happening in the middle of an agent install.
+    #
+    # admin_headless is used to create a default superuser. Naturally, you
+    # should remove this in production.
+    command: make migrate admin_headless run_noreload
     env_file:
       # Expose .env.dev to Django's settings.py
       - "./.env.dev"
