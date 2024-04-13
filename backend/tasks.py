@@ -4,6 +4,7 @@ All shared Celery tasks.
 
 from pathlib import Path
 from typing import Any, Optional
+import json
 import time
 import logging
 
@@ -222,10 +223,14 @@ def receive_messages(
     # return [str(msg.message_id) for msg in msgs]
     
     # XXX: For demonstration, dump the entire received message. In practice, 
-    # it's lighter to just return the message IDs. Don't use dump_json, since
-    # all the data *should* be serializable by convention.
+    # it's lighter to just return the message IDs. 
+    #
+    # We use dump_json to convert everything into representable types (UUID is
+    # not a native JSON type, for example), and then use json.loads() to turn it
+    # back into a Python object. This effectively converts everything into 
+    # "normal" JSON.
     ta = TypeAdapter(list[DeadDropMessage])
-    return ta.dump_python(msgs)
+    return json.loads(ta.dump_json(msgs))
 
 @shared_task
 def install_agent(bundle_path: str, user_id: Optional[int] = None) -> dict[str, Any]:

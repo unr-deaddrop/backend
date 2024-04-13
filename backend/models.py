@@ -420,4 +420,4 @@ class Log(models.Model):
         return reverse("log-detail", args=[str(self.id)])
 
     def __str__(self):
-        return str(self.id) + self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        return str(self.id) + " " +self.timestamp.strftime("(%Y-%m-%d %H:%M:%S)")

@@ -138,3 +138,8 @@ class CommandSerializer(serializers.Serializer):
     cmd_name = serializers.CharField(required=True)
     # The unvalidated command arguments.
     cmd_args = serializers.JSONField(required=True)
+    
+    
+class ExecuteCommandSerializer(serializers.Serializer):
+    endpoint = serializers.PrimaryKeyRelatedField(queryset=Endpoint.objects.all())
+    cmd_data = CommandSerializer()

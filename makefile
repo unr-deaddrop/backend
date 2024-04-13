@@ -44,8 +44,9 @@ purge: flush
 admin:
 	python3 manage.py createsuperuser
 
+# Never fail
 admin_headless:
-	python3 manage.py createsuperuser --noinput
+	python3 manage.py createsuperuser --noinput || true
 
 dep:
 	pip3 install -r requirements.txt 
