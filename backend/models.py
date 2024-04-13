@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, Optional
 from tempfile import TemporaryDirectory
 import logging
 import json
@@ -314,6 +314,10 @@ class Message(models.Model):
 class Credential(models.Model):
     credential_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
+    source = models.ForeignKey(
+        Endpoint, blank=True, null=True, on_delete=models.PROTECT, related_name="credentials"
+    )
+    
     # Task responsible for creating this credential entry, if any
     task = models.ForeignKey(
         TaskResult,
@@ -353,6 +357,12 @@ class Credential(models.Model):
 class File(models.Model):
     file_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
+    source = models.ForeignKey(
+        Endpoint, blank=True, null=True, on_delete=models.PROTECT, related_name="files"
+    )
+    
+    remote_path = models.CharField(max_length=1023, blank=True, null=True)
+    
     # Task responsible for creating this credential entry, if any
     task = models.ForeignKey(
         TaskResult, on_delete=models.PROTECT, blank=True, null=True, related_name="files"
@@ -372,11 +382,15 @@ class File(models.Model):
         )
         file_target = Path(settings.MEDIA_ROOT) / media_path
         
+        # Make sure the folder exists before performing operations
+        file_target.parent.mkdir(parents=True, exist_ok=True)
+        
         with open(file_target, "wb+") as fp:
-            fp.write(file.file_data)
+            fp.write(file.file_data.data)
         
         return cls(
             file_id = file.file_id,
+            remote_path=file.remote_path,
             file = str(media_path)
         )
 
