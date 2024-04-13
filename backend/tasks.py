@@ -208,13 +208,19 @@ def receive_messages(
         
         for file in payload.files:
             try:
-                File.from_deaddrop_file(file).save()
+                file = File.from_deaddrop_file(file)
+                file.task = TaskResult.objects.get(task_id=current_task.request.id)
+                file.source = Endpoint.objects.get(id=endpoint_id)
+                file.save()
             except IntegrityError:
                 logger.warning(f"Received {file.file_id=}, assuming duplicate and dropping")
         
         for credential in payload.credentials:
             try:
-                Credential.from_deaddrop_credential(credential).save()
+                cred = Credential.from_deaddrop_credential(credential)
+                cred.task = TaskResult.objects.get(task_id=current_task.request.id)
+                cred.source = Endpoint.objects.get(id=endpoint_id)
+                cred.save()
             except IntegrityError:
                 logger.warning(f"Received {credential.credential_id=}, assuming duplicate and dropping")
     
