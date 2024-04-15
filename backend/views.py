@@ -14,6 +14,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.filters import SearchFilter
 
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
 from django_filters.rest_framework import DjangoFilterBackend
@@ -562,13 +563,18 @@ def int_or(str, default):
     return ret
 
 class LogViewSet(viewsets.ModelViewSet):
+    queryset = Log.objects.all()
     serializer_class = LogSerializer
-    def list(self, request):
-        queryset = Log.objects.all()
-        queryset = queryset.filter(data__contains=str("" if not request.GET.get('search') else request.GET.get('search')))
-            
-        pages = Paginator(queryset, int_or(request.GET.get('show', '10'), 10))
-        queryset = pages.get_page(int_or(request.GET.get('page', '1'), 1)).object_list
-        dataset = [self.serializer_class(log).data for log in queryset]
-        dataset = {'pages': str(pages.num_pages), 'data': dataset}
-        return JsonResponse(dataset, safe=False)
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields=[
+        "id",
+        "category",
+        "level",
+        "source",
+        "user",
+        "task",
+        "data",
+        "timestamp"
+    ]
+    # ?search= will return on data only
+    search_fields = ['data']
