@@ -21,6 +21,8 @@ from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Func, IntegerField
 from django.conf import settings
+from django.http import JsonResponse
+from django.core.paginator import Paginator
 
 from backend.models import (
     Agent,
@@ -552,6 +554,21 @@ class FileViewSet(viewsets.ModelViewSet):
 
 
 # Logs
+def int_or(str, default):
+    try: 
+        ret = int(str)
+    except ValueError:
+        ret = default
+    return ret
+
 class LogViewSet(viewsets.ModelViewSet):
-    queryset = Log.objects.all()
     serializer_class = LogSerializer
+    def list(self, request):
+        queryset = Log.objects.all()
+        queryset = queryset.filter(data__contains=str("" if not request.GET.get('search') else request.GET.get('search')))
+            
+        pages = Paginator(queryset, int_or(request.GET.get('show', '10'), 10))
+        queryset = pages.get_page(int_or(request.GET.get('page', '1'), 1)).object_list
+        dataset = [self.serializer_class(log).data for log in queryset]
+        dataset = {'pages': str(pages.num_pages), 'data': dataset}
+        return JsonResponse(dataset, safe=False)
