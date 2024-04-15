@@ -66,6 +66,7 @@ REST_FRAMEWORK = {
         'rest_framework_datatables.renderers.DatatablesRenderer',
     ],
     'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
         'backend.filters.AllDjangoFilterBackend',
         'rest_framework_datatables.filters.DatatablesFilterBackend',
     ],
