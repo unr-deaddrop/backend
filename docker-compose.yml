@@ -83,6 +83,15 @@ services:
       - "5173:5173"
     expose:
       - "5173"
+    volumes:
+      # https://stackoverflow.com/questions/74680419/dockerized-sveltkit-app-hot-reload-not-working
+      # these are relative to docker compose, not to the build key
+      - ../frontend/deaddrop/src:/app/src
+      - ../frontend/deaddrop/static:/app/static
+      - ../frontend/deaddrop/vite.config.js:/app/vite.config.js
+      # - ../frontend/deaddrop/tsconfig.json:/app/tsconfig.json
+      - ../frontend/deaddrop/svelte.config.js:/app/svelte.config.js
+    command: npm run dev
 
 # Allows data to persist. Particularly important for the package manager, since
 # it needs different containers all operating on the same data.

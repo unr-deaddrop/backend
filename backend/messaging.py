@@ -88,7 +88,7 @@ def send_message(
     
     # Take message-logs.txt and use that as the result, also converting it into a 
     # LogMessage
-    log = get_and_save_message_log(temp_dir_path, user, task_id)
+    log = get_and_save_message_log(temp_dir_path, "messaging-send", user=user, task_id=task_id)
     
     # If present, read protocol_state.json and update the endpoint accordingly
     update_protocol_state(temp_dir_path, endpoint)
@@ -136,7 +136,7 @@ def receive_messages(
     
     # Take message-logs.txt and use that as the result, also converting it into a 
     # LogMessage
-    log = get_and_save_message_log(temp_dir_path, user, task_id)
+    log = get_and_save_message_log(temp_dir_path, "messaging-receive", user=user, task_id=task_id)
     
     # If present, read protocol_state.json and update the endpoint accordingly
     update_protocol_state(temp_dir_path, endpoint)
@@ -229,8 +229,9 @@ def invoke_message_handler(
 
 def get_and_save_message_log(
     temp_dir: Path,
+    category: str,
     user: Optional[User] = None,
-    task_id: Optional[str] = None
+    task_id: Optional[str] = None,
 ) -> Log:
     log_path = temp_dir / LOG_FILE_NAME
 
@@ -248,7 +249,7 @@ def get_and_save_message_log(
             source=None,
             user=user,
             task=task,
-            category="payload-build",
+            category=category,
             level=DeadDropLogLevel.INFO,
             timestamp=datetime.datetime.now(datetime.UTC),
             data=fp.read(),

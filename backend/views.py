@@ -14,12 +14,16 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.filters import SearchFilter
+from rest_framework.pagination import PageNumberPagination
+from django_filters import rest_framework as filters
+
 
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Func, IntegerField
+from django.db.models import Q, Func, IntegerField, DateTimeField
 from django.conf import settings
 from django.http import JsonResponse
 from django.core.paginator import Paginator
@@ -560,15 +564,26 @@ def int_or(str, default):
     except ValueError:
         ret = default
     return ret
+    
+class LogPagination(PageNumberPagination):
+    page_size = 100
+    page_size_query_param = 'limit'
 
 class LogViewSet(viewsets.ModelViewSet):
+    queryset = Log.objects.all().order_by('id')
     serializer_class = LogSerializer
-    def list(self, request):
-        queryset = Log.objects.all()
-        queryset = queryset.filter(data__contains=str("" if not request.GET.get('search') else request.GET.get('search')))
-            
-        pages = Paginator(queryset, int_or(request.GET.get('show', '10'), 10))
-        queryset = pages.get_page(int_or(request.GET.get('page', '1'), 1)).object_list
-        dataset = [self.serializer_class(log).data for log in queryset]
-        dataset = {'pages': str(pages.num_pages), 'data': dataset}
-        return JsonResponse(dataset, safe=False)
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    pagination_class = LogPagination
+    filterset_fields = {
+        'id': ['exact'],
+        "category": ['exact'],
+        "level": ['exact'],
+        "source": ['exact'],
+        "user": ['exact'],
+        "task": ['exact'],
+        "data": ['exact'],
+        "timestamp": ['exact', 'gte', 'lte'],
+    }
+    # filter_class = LogFilter
+    # ?search= will return on data only
+    search_fields = ['data']

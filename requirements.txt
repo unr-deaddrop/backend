@@ -10,6 +10,7 @@ django-stubs==4.2.7
 django-stubs-ext==4.2.7
 djangorestframework==3.14.0
 django-celery-results==2.5.1
+djangorestframework-datatables==0.7.1
 
 jsonschema==4.10.3
 pandas==2.2.1
