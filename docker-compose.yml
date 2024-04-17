@@ -1,7 +1,33 @@
 version: '3'
 services:
 
+  traefik:
+    container_name: traefik
+    # The official v2 Traefik docker image
+    image: traefik:v2.11
+    # Enables the web UI and tells Traefik to listen to docker
+    command: --api.insecure=true --providers.docker
+    networks:
+      default:
+        aliases:
+          - "backend:backend.localhost"
+          - "frontend:frontend.localhost"
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    expose:
+      - "80"
+      - "8080"
+    labels:
+      - "traefik.docker.network=default"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+
   redis:
+    container_name: redis
     image: redis:7.0.11-alpine # other stuff may not work due to alpine. probably will tho
 
   backend:
@@ -17,10 +43,15 @@ services:
     env_file:
       # Expose .env.dev to Django's settings.py
       - "./.env.dev"
-    ports:
-      - "8000:8000"
-    expose:
-      - "8000"
+    # ports:
+    #   - "8000:8000"
+    # expose:
+    #   - "8000"
+    networks:
+      - default
+    labels:
+      - "traefik.docker.network=default"
+      - "traefik.http.routers.backend.rule=Host(`backend.localhost`)"
     volumes:
       # Make the host's Docker daemon accessible, allows payloads to spin up
       # their own sibling containers
@@ -36,6 +67,7 @@ services:
 
   # https://testdriven.io/blog/dockerizing-django-with-postgres-gunicorn-and-nginx/
   db:
+    container_name: db
     image: postgres:16
     volumes:
       # NOTE: This makes data persist beyond the lifetime of the container! You'll 
@@ -51,10 +83,10 @@ services:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin
       - POSTGRES_DB=deaddrop
-    ports:
-      - "5432:5432"
-    expose:
-      - "5432"
+    # ports:
+    #   - "5432:5432"
+    # expose:
+    #   - "5432"
 
   celery:
     container_name: celery
@@ -77,12 +109,18 @@ services:
       - media:/app/media
 
   frontend:
+    container_name: frontend
   # for now add a comment mentioning something along the lines of this assuming a specific directory structure, where the frontend is in the same parent folder as the backend
     build: ../frontend/deaddrop/.
-    ports:
-      - "5173:5173"
-    expose:
-      - "5173"
+    # ports:
+    #   - "5173:5173"
+    # expose:
+    #   - "5173"
+    networks:
+      - default
+    labels:
+      - "traefik.docker.network=default"
+      - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`)"
     volumes:
       # https://stackoverflow.com/questions/74680419/dockerized-sveltkit-app-hot-reload-not-working
       # these are relative to docker compose, not to the build key
@@ -99,3 +137,7 @@ volumes:
   postgres_data:
   packages:
   media:
+
+networks:
+  default:
+    driver: bridge

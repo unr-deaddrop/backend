@@ -460,7 +460,7 @@ class EndpointViewSet(viewsets.ModelViewSet):
         # return Response(serializer_tmp.data)
 
     # really, this should be a GET request, but i think the interface is "cleaner"
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['get', 'post'])
     def get_command_metadata(self, request, pk=None):
         # Note that we expect an endpoint, not an agent, even though the response
         # would be the same across two endpoints of the same agent. This is to

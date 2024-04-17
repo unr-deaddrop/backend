@@ -38,7 +38,8 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'backend',
     'localhost',
-    '127.0.0.1'
+    '127.0.0.1',
+    'backend.localhost'
 ]
 
 
@@ -71,8 +72,8 @@ REST_FRAMEWORK = {
         'rest_framework_datatables.filters.DatatablesFilterBackend',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication'
+        # 'rest_framework.authentication.TokenAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication'
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
