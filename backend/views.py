@@ -312,7 +312,13 @@ class InstallAgentViewSet(viewsets.ViewSet):
     
         result = tasks.install_agent.delay(str(bundle_target), request.user.id)
 
-        return Response({"task_id": result.id})
+        task_obj = TaskResult.objects.get(task_id=result.id)
+        return Response(
+            {
+                "celery_id": result.id,
+                "task_id": task_obj.id
+            }
+        )
 
 
 @api_view(["GET"])
@@ -452,7 +458,13 @@ class EndpointViewSet(viewsets.ModelViewSet):
 
         # When implemented on the frontend, this should be used to redirect the
         # user to the task page.
-        return Response({"task_id": result.id})
+        task_obj = TaskResult.objects.get(task_id=result.id)
+        return Response(
+            {
+                "celery_id": result.id,
+                "task_id": task_obj.id
+            }
+        )
 
         # Synchronous version, used originally for debugging
         # tmp = tasks.generate_payload(serializer.data, request.user.id)
@@ -460,7 +472,7 @@ class EndpointViewSet(viewsets.ModelViewSet):
         # return Response(serializer_tmp.data)
 
     # really, this should be a GET request, but i think the interface is "cleaner"
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['get', 'post'])
     def get_command_metadata(self, request, pk=None):
         # Note that we expect an endpoint, not an agent, even though the response
         # would be the same across two endpoints of the same agent. This is to
@@ -506,7 +518,13 @@ class EndpointViewSet(viewsets.ModelViewSet):
 
         # Return the task ID, which is intended to be used by the frontend
         # to bring the user to the relevant TaskResult detail page.
-        return Response({"task_id": result.id})
+        task_obj = TaskResult.objects.get(task_id=result.id)
+        return Response(
+            {
+                "celery_id": result.id,
+                "task_id": task_obj.id
+            }
+        )
     
     # This isn't idempotent. But on one hand, we're just getting data; on the other
     # hand, this violates what it means for something to be a GET endpoint, since
@@ -518,7 +536,13 @@ class EndpointViewSet(viewsets.ModelViewSet):
         """
         endpoint: Endpoint = self.get_object()
         result = tasks.receive_messages.delay(str(endpoint.id), request.user.id, None)
-        return Response({"task_id": result.id})
+        task_obj = TaskResult.objects.get(task_id=result.id)
+        return Response(
+            {
+                "celery_id": result.id,
+                "task_id": task_obj.id
+            }
+        )
         
 
 class ExecuteCommandViewSet(viewsets.ViewSet):
@@ -543,7 +567,13 @@ class ExecuteCommandViewSet(viewsets.ViewSet):
         except Exception as e:
             return Response({"error": str(e)})
 
-        return Response({"task_id": result.id})
+        task_obj = TaskResult.objects.get(task_id=result.id)
+        return Response(
+            {
+                "celery_id": result.id,
+                "task_id": task_obj.id
+            }
+        )
 
 
 # Files

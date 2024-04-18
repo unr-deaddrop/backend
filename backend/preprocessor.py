@@ -70,7 +70,7 @@ def preprocess_create_id(input: dict[str, Any], _value: Any) -> None:
     # Unfortunately, this isn't Pydantic and json/json5 won't auto-serialize
     # UUID objects
     input['default'] = str(uuid.uuid4())
-    input['readonly'] = True
+    input['readOnly'] = True
 
 def preprocess_settings_val(input: dict[str, Any], value: Any) -> None:
     """
@@ -78,7 +78,7 @@ def preprocess_settings_val(input: dict[str, Any], value: Any) -> None:
     make read-only.
     """
     input['default'] = getattr(settings, value)
-    input['readonly'] = True
+    input['readOnly'] = True
 
 ACTIONS = {
     'create_id': preprocess_create_id,
