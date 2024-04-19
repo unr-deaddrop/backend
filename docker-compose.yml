@@ -8,8 +8,9 @@ services:
     # Enables the web UI and tells Traefik to listen to docker
     command: --api.insecure=true --providers.docker
     networks:
-      # - proxy
       proxy:
+        # makes sure that containers can access the reverse proxy hostnames thru aliasing
+        # i.e. backend.localhost:8000 becomes backend.localhost thru this
         aliases:
           - "backend.localhost"
           - "frontend.localhost"
@@ -48,10 +49,9 @@ services:
     #   - "8000:8000"
     # expose:
     #   - "8000"
-    # network_mode: host
     networks:
-      # - proxy
       proxy:
+        # makes sure that backend:8000 can be accessed as backend.localhost:8000
         aliases:
           - backend.localhost
     labels:
@@ -125,13 +125,10 @@ services:
     #   - "5173:5173"
     # expose:
     #   - "5173"
-    # network_mode: host
     networks:
       proxy:
         aliases:
           - frontend.localhost
-    # extra_hosts:
-    #   - "backend.localhost:host.docker.internal"
     labels:
       - "traefik.docker.network=prototype_backend_proxy"
       - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`)"
@@ -152,6 +149,7 @@ volumes:
   packages:
   media:
 
+# creates a manual network using bridge to bridge all containers together
 networks:
-  proxy:
+  proxy: # network name is prototype_backend_proxy
     driver: bridge
