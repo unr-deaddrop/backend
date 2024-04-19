@@ -8,10 +8,11 @@ services:
     # Enables the web UI and tells Traefik to listen to docker
     command: --api.insecure=true --providers.docker
     networks:
-      default:
-        aliases:
-          - "backend:backend.localhost"
-          - "frontend:frontend.localhost"
+      - proxy
+      # proxy:
+    #     aliases:
+    #       - "backend.localhost"
+    #       - "frontend.localhost"
     ports:
       # The HTTP port
       - "80:80"
@@ -20,8 +21,6 @@ services:
     expose:
       - "80"
       - "8080"
-    labels:
-      - "traefik.docker.network=default"
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
@@ -29,6 +28,8 @@ services:
   redis:
     container_name: redis
     image: redis:7.0.11-alpine # other stuff may not work due to alpine. probably will tho
+    networks:
+      - proxy
 
   backend:
     container_name: backend
@@ -47,10 +48,14 @@ services:
     #   - "8000:8000"
     # expose:
     #   - "8000"
+    # network_mode: host
     networks:
-      - default
+      - proxy
+      # proxy:
+      #   aliases:
+      #     - backend.localhost
     labels:
-      - "traefik.docker.network=default"
+      - "traefik.docker.network=prototype_backend_proxy"
       - "traefik.http.routers.backend.rule=Host(`backend.localhost`)"
     volumes:
       # Make the host's Docker daemon accessible, allows payloads to spin up
@@ -87,6 +92,8 @@ services:
     #   - "5432:5432"
     # expose:
     #   - "5432"
+    networks:
+      - proxy
 
   celery:
     container_name: celery
@@ -96,6 +103,8 @@ services:
       - "./.env.dev"
     build:
       context: .
+    networks:
+      - proxy
     command: celery --app=deaddrop worker -l INFO
     depends_on:
       - redis
@@ -110,16 +119,21 @@ services:
 
   frontend:
     container_name: frontend
-  # for now add a comment mentioning something along the lines of this assuming a specific directory structure, where the frontend is in the same parent folder as the backend
+    # for now add a comment mentioning something along the lines of this assuming a specific directory structure, where the frontend is in the same parent folder as the backend
     build: ../frontend/deaddrop/.
     # ports:
     #   - "5173:5173"
     # expose:
     #   - "5173"
+    # network_mode: host
     networks:
-      - default
+      proxy:
+        aliases:
+          - frontend.localhost
+    # extra_hosts:
+    #   - "backend.localhost:host.docker.internal"
     labels:
-      - "traefik.docker.network=default"
+      - "traefik.docker.network=prototype_backend_proxy"
       - "traefik.http.routers.frontend.rule=Host(`frontend.localhost`)"
     volumes:
       # https://stackoverflow.com/questions/74680419/dockerized-sveltkit-app-hot-reload-not-working
@@ -139,5 +153,5 @@ volumes:
   media:
 
 networks:
-  default:
+  proxy:
     driver: bridge
