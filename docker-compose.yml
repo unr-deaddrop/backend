@@ -8,11 +8,11 @@ services:
     # Enables the web UI and tells Traefik to listen to docker
     command: --api.insecure=true --providers.docker
     networks:
-      - proxy
-      # proxy:
-    #     aliases:
-    #       - "backend.localhost"
-    #       - "frontend.localhost"
+      # - proxy
+      proxy:
+        aliases:
+          - "backend.localhost"
+          - "frontend.localhost"
     ports:
       # The HTTP port
       - "80:80"
@@ -50,10 +50,10 @@ services:
     #   - "8000"
     # network_mode: host
     networks:
-      - proxy
-      # proxy:
-      #   aliases:
-      #     - backend.localhost
+      # - proxy
+      proxy:
+        aliases:
+          - backend.localhost
     labels:
       - "traefik.docker.network=prototype_backend_proxy"
       - "traefik.http.routers.backend.rule=Host(`backend.localhost`)"
