@@ -53,6 +53,7 @@ from backend.serializers import (
     AgentSchemaSerializer,
     CommandSerializer,
     MessageSerializer,
+    ChatSerializer,
     ExecuteCommandSerializer
 )
 from backend.packages import install_agent
@@ -62,6 +63,44 @@ import backend.tasks as tasks
 
 import jsonschema
 import humanize
+
+# Chat
+class ChatViewSet(viewsets.ViewSet):
+    serializer_class = ChatSerializer
+    
+    def list(self, request, format=None):
+        """
+        Get all chat messages.
+        """
+        
+        result = tasks.get_peertube_chats.apply_async(kwargs={'user_id': request.user.id})
+        
+        # This should return all decoded mesages on dddb
+        return Response(
+            {
+                "messages": result.get()
+            }
+        )
+    
+    # POST
+    def create(self, request, format=None):
+        serializer = self.serializer_class(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors)
+
+        result = tasks.post_chat_to_peertube.apply_async(kwargs={'chat_msg': serializer.data, 'user_id': request.user.id})
+
+        # This should return the message sent
+        return Response(
+            {
+                "message": result.get(),
+            }
+        )
+
+        # Synchronous version, used originally for debugging
+        # tmp = tasks.generate_payload(serializer.data, request.user.id)
+        # serializer_tmp = self.serializer_class(tmp)
+        # return Response(serializer_tmp.data)
 
 class DashboardViewSet(viewsets.ViewSet):
     # @action(detail=False, methods=['get'])

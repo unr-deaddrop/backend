@@ -73,6 +73,9 @@ class AgentSerializer(serializers.ModelSerializer):
 class BundleSerializer(serializers.Serializer):
     bundle_path = serializers.FileField(allow_empty_file=False)
 
+class ChatSerializer(serializers.Serializer):
+    chat = serializers.CharField(required=False)
+
 
 class ProtocolSerializer(serializers.ModelSerializer):
     class Meta:

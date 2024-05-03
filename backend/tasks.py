@@ -14,13 +14,16 @@ from django_celery_results.models import TaskResult
 from pydantic import TypeAdapter
 
 from backend.models import Agent, Endpoint, File, Credential
-from backend.serializers import EndpointSerializer, AgentSerializer
+from backend.serializers import EndpointSerializer, AgentSerializer, ChatSerializer
 from django.contrib.auth.models import User
 from django.db.models.query import QuerySet
 from django.db import IntegrityError
 import backend.messaging as messaging
 import backend.payloads as payloads
 import backend.packages as packages
+
+from dddb.video.peertube import dddbPeerTube
+from dddb.video import dddbDecodeVideo, dddbEncodeVideo
 
 
 from deaddrop_meta.protocol_lib import (
@@ -256,4 +259,43 @@ def install_agent(bundle_path: str, user_id: Optional[int] = None) -> dict[str, 
     bundle_path.unlink()
     
     serializer = AgentSerializer(agent_obj)
+    return serializer.data
+
+@shared_task
+def post_chat_to_peertube(chat_msg: str, host: str = "http://192.168.0.102:9000", user_id: Optional[int] = None) -> dict[str, Any]:
+    """
+    Send chat to peertube instance
+    """
+    # Associate the current task with the specified user
+    user = add_user_id_to_task(user_id)
+    
+    task_id = current_task.request.id
+    
+    dddbPeerTubeObj = dddbPeerTube(host, "root", "deaddrop")
+    dddbPeerTubeObj.authenticate()
+    dddbVideoEncodeObj = dddbEncodeVideo(chat_msg.encode('utf-8'))
+    dddbPeerTubeObj.post(dddbVideoEncodeObj.getBytes(), dest="terminal", src="chat")
+    
+    
+    serializer = ChatSerializer(chat_msg)
+    return serializer.data
+
+@shared_task
+def get_peertube_chats(host: str = "http://192.168.0.102:9000", user_id: Optional[int] = None) -> dict[str, Any]:
+    """
+    Install an agent through the package manager.
+    """
+    # Associate the current task with the specified user
+    user = add_user_id_to_task(user_id)
+    
+    task_id = current_task.request.id
+    
+    messages = []
+    dddbPeerTubeObj = dddbPeerTube(host, "root", "deaddrop")
+    dddbPeerTubeObj.authenticate()
+    for response in dddbPeerTubeObj.get(dest="terminal"):
+        messages += str(dddbDecodeVideo(response['data']).getBytes())
+    
+    
+    serializer = ChatSerializer(messages, many=True)
     return serializer.data

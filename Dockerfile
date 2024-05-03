@@ -7,6 +7,12 @@ ENV PYTHONDONTWRITEBYTECODE 1
 # ensure output ios sent directly to terminal without buffering
 ENV PYTHONUNBUFFERED 1
 
+# Update package lists and install required packages
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsm6 \
+    libxext6
+
 # Install the docker client (used to spin up agent containers)
 COPY install-docker.sh .
 RUN chmod +x install-docker.sh

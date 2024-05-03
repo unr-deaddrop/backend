@@ -20,6 +20,7 @@ router.register(r"taskresults", views.TaskResultViewSet, basename="taskresults")
 router.register(r"messages", views.MessageViewSet, basename="messages")
 router.register(r"dashboard", views.DashboardViewSet, basename="dashboard")
 router.register(r"executeCommand", views.ExecuteCommandViewSet, basename="executeCommand")
+router.register(r"chat", views.ChatViewSet, basename="chat")
 
 urlpatterns = [
     # path('/', views.credentials),
